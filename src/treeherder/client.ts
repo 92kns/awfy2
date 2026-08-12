@@ -26,7 +26,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
 
 interface CacheEntry {
   expiresAt: number;
-  promise: Promise<unknown>;
+  value: unknown;
 }
 
 const responseCache = new Map<string, CacheEntry>();
@@ -49,28 +49,27 @@ async function fetchJson<T>(
   const key = url.toString();
   const cached = responseCache.get(key);
   if (cached && cached.expiresAt > Date.now()) {
-    return cached.promise as Promise<T>;
+    return cached.value as T;
   }
 
-  const promise = fetch(url, { signal })
-    .then(async (response) => {
-      if (!response.ok) {
-        throw new Error(`Treeherder request failed: ${response.status}`);
-      }
-      const json: unknown = await response.json();
-      const parsed = schema.safeParse(json);
-      if (!parsed.success) {
-        throw new InvalidResponseError(key, parsed.error);
-      }
-      return parsed.data;
-    })
-    .catch((error: unknown) => {
-      responseCache.delete(key);
-      throw error;
-    });
+  // Cache only completed responses. An in-flight fetch is owned by its caller's
+  // AbortSignal and must not be shared with a newer route that has a different
+  // lifetime.
+  const response = await fetch(url, { signal });
+  if (!response.ok) {
+    throw new Error(`Treeherder request failed: ${response.status}`);
+  }
+  const json: unknown = await response.json();
+  const parsed = schema.safeParse(json);
+  if (!parsed.success) {
+    throw new InvalidResponseError(key, parsed.error);
+  }
 
-  responseCache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, promise });
-  return promise;
+  responseCache.set(key, {
+    expiresAt: Date.now() + CACHE_TTL_MS,
+    value: parsed.data,
+  });
+  return parsed.data;
 }
 
 async function fetchPerformanceGraphs(

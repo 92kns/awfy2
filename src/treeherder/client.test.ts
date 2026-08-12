@@ -172,4 +172,60 @@ describe('Treeherder client', () => {
     });
     expect(offline.status).toBe('network-error');
   });
+
+  it('does not share an abortable in-flight request with a newer route', async () => {
+    const firstController = new AbortController();
+    const secondController = new AbortController();
+    let callCount = 0;
+    const fetchMock = vi.fn(
+      (input: URL | RequestInfo, init?: RequestInit): Promise<Response> => {
+        callCount += 1;
+        const url = new URL(input.toString());
+        if (callCount <= 2) {
+          return new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              reject(new DOMException('Aborted', 'AbortError'));
+            });
+          });
+        }
+        if (url.pathname === '/api/optioncollectionhash/') {
+          return Promise.resolve(
+            jsonResponse([
+              {
+                option_collection_hash: 'opt-hash',
+                options: [{ name: 'opt' }],
+              },
+            ]),
+          );
+        }
+        if (url.pathname.endsWith('/performance/signatures/')) {
+          return Promise.resolve(jsonResponse({ 101: parent }));
+        }
+        return Promise.resolve(
+          jsonResponse({
+            'parent-hash': [{ id: 1, push_timestamp: 100, value: 9.5 }],
+          }),
+        );
+      },
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const first = querySeries(series, {
+      includeSubtests: false,
+      intervalSeconds: 86400,
+      signal: firstController.signal,
+    });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+
+    const second = querySeries(series, {
+      includeSubtests: false,
+      intervalSeconds: 86400,
+      signal: secondController.signal,
+    });
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(4));
+    firstController.abort();
+
+    await expect(first).rejects.toMatchObject({ name: 'AbortError' });
+    await expect(second).resolves.toMatchObject({ status: 'success' });
+  });
 });
