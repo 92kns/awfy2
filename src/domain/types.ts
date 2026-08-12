@@ -1,0 +1,147 @@
+export const TREEHERDER_PROJECTS = ['mozilla-central', 'autoland'] as const;
+
+export type TreeherderProject = (typeof TREEHERDER_PROJECTS)[number] | string;
+
+export interface SeriesTemplate {
+  application?: string | undefined;
+  color: string;
+  extraOptions?: string[] | undefined;
+  frameworkId: number;
+  label: string;
+  option: string;
+  platform?: string | undefined;
+  platformSuffix?: string | undefined;
+  project?: TreeherderProject | undefined;
+  suite: string;
+  suiteSuffix?: string | undefined;
+  test?: string | undefined;
+}
+
+export interface ResolvedSeries extends SeriesTemplate {
+  platform: string;
+}
+
+export interface BenchmarkPreset {
+  compare: Record<string, SeriesTemplate>;
+  docUrl?: string | undefined;
+  label: string;
+  yLabel?: string | undefined;
+}
+
+export type BenchmarkMap = Record<string, BenchmarkPreset>;
+
+export interface CategoryPreset {
+  label: string;
+  suites: string[];
+}
+
+export type CategoryMap = Record<string, CategoryPreset>;
+
+export interface ViewPreset {
+  categories: CategoryMap;
+  label: string;
+  platforms: string[];
+  project?: TreeherderProject | undefined;
+}
+
+export interface DashboardConfig {
+  dayRange: number[];
+  default: {
+    category: string;
+    dayRange: number;
+    platform: string;
+  };
+  views: Record<string, ViewPreset>;
+}
+
+export interface DashboardPreset {
+  benchmarks: BenchmarkMap;
+  config: DashboardConfig;
+  id: string;
+  maxDayRange: number;
+  title: string;
+}
+
+export interface BenchmarkQuery {
+  benchmarkId: string;
+  docUrl?: string | undefined;
+  includeSubtests: boolean;
+  label: string;
+  series: ResolvedSeries[];
+  yLabel?: string | undefined;
+}
+
+export interface Datum {
+  datumId: number;
+  timestamp: number;
+  value: number;
+}
+
+export interface Signature {
+  application?: string | undefined;
+  extraOptions?: string[] | undefined;
+  frameworkId: number;
+  hasSubtests: boolean;
+  id: number;
+  lowerIsBetter?: boolean | undefined;
+  machinePlatform?: string | undefined;
+  optionCollectionHash: string;
+  signatureHash: string;
+  suite: string;
+  test: string;
+}
+
+export type SignatureResolution =
+  | { status: 'resolved'; signature: Signature }
+  | { status: 'not-found'; candidates: Signature[] }
+  | { status: 'ambiguous'; candidates: Signature[] };
+
+export interface PerformanceGraph {
+  data: Datum[];
+  meta: Signature;
+  perfherderUrl: string;
+}
+
+export interface SeriesQuerySuccess {
+  graphs: PerformanceGraph[];
+  series: ResolvedSeries;
+  status: 'success';
+}
+
+export interface SeriesQueryFailure {
+  candidates?: Signature[] | undefined;
+  message: string;
+  series: ResolvedSeries;
+  status: 'not-found' | 'ambiguous' | 'invalid-response' | 'network-error';
+}
+
+export type SeriesQueryResult = SeriesQuerySuccess | SeriesQueryFailure;
+
+export interface ChartPoint {
+  x: number;
+  y: number;
+}
+
+export interface ChartSeries {
+  color: string;
+  data: ChartPoint[];
+  label: string;
+}
+
+export interface GraphViewModel {
+  docUrl?: string | undefined;
+  id: string;
+  lowerIsBetter?: boolean | undefined;
+  perfherderUrl: string;
+  series: ChartSeries[];
+  subtitle?: string | undefined;
+  title: string;
+  yLabel: string;
+}
+
+export interface BenchmarkLoadResult {
+  benchmarkId: string;
+  errors: SeriesQueryFailure[];
+  graphs: GraphViewModel[];
+  label: string;
+}
