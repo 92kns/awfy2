@@ -32,8 +32,7 @@
           label: series.label,
           pointRadius: 1.8,
           pointHoverRadius: 4,
-          showLine: true,
-          tension: 0.1,
+          showLine: false,
         })),
       },
       options: {
