@@ -12,16 +12,39 @@ function graphId(title: string, test: string): string {
   return `${title}::${test}`;
 }
 
+function logicalSeriesId(series: BenchmarkQuery['series'][number]): string {
+  return JSON.stringify([
+    series.application ?? '',
+    [...(series.extraOptions ?? [])].sort(),
+    series.frameworkId,
+    series.label,
+    series.option,
+    series.project ?? '',
+    series.suite,
+    series.test ?? '',
+  ]);
+}
+
 export function combineSeriesResults(
   query: BenchmarkQuery,
   results: readonly SeriesQueryResult[],
 ): BenchmarkLoadResult {
   const graphs = new Map<string, GraphViewModel>();
   const errors: SeriesQueryFailure[] = [];
+  const successfulSeries = new Set(
+    results
+      .filter((result) => result.status === 'success')
+      .map((result) => logicalSeriesId(result.series)),
+  );
 
   for (const result of results) {
     if (result.status !== 'success') {
-      errors.push(result);
+      // A view can span old and replacement machine platforms so their data
+      // merges into one logical series. Do not present a retired platform as a
+      // broken browser when its equivalent succeeded on the replacement pool.
+      if (!successfulSeries.has(logicalSeriesId(result.series))) {
+        errors.push(result);
+      }
       continue;
     }
 

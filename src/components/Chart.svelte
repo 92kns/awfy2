@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Chart, type ChartConfiguration } from 'chart.js/auto';
   import type { GraphViewModel } from '../domain/types';
+  import { shouldReverseYAxis } from './chart-options';
 
   let {
     graph,
@@ -64,7 +65,9 @@
             title: { display: false },
           },
           y: {
-            reverse: graph.lowerIsBetter === false,
+            // Keep improvement visually consistent: higher scores go up, and
+            // lower durations go up on a reversed axis.
+            reverse: shouldReverseYAxis(graph.lowerIsBetter),
             ticks: {
               callback: (value) => numberFormat.format(Number(value)),
             },

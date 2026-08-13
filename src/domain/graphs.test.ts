@@ -83,4 +83,44 @@ describe('graph view-model assembly', () => {
     expect(combined.graphs).toHaveLength(1);
     expect(combined.errors).toEqual([failure]);
   });
+
+  it('suppresses a retired platform failure when its replacement succeeds', () => {
+    const failure: SeriesQueryResult = {
+      message: 'missing',
+      series: { ...firefox, platform: 'windows11-old' },
+      status: 'not-found',
+    };
+    const replacement = success(
+      { ...firefox, platform: 'windows11-replacement' },
+      1,
+      1000,
+    );
+
+    const combined = combineSeriesResults(query, [failure, replacement]);
+
+    expect(combined.graphs).toHaveLength(1);
+    expect(combined.errors).toEqual([]);
+  });
+
+  it('keeps a failure when only a different browser succeeds', () => {
+    const failure: SeriesQueryResult = {
+      message: 'missing',
+      series: { ...firefox, platform: 'windows11-old' },
+      status: 'not-found',
+    };
+    const chrome = success(
+      {
+        ...firefox,
+        application: 'chrome',
+        label: 'Chrome',
+        platform: 'windows11-replacement',
+      },
+      2,
+      1000,
+    );
+
+    expect(combineSeriesResults(query, [failure, chrome]).errors).toEqual([
+      failure,
+    ]);
+  });
 });
