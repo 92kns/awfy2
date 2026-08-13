@@ -11,6 +11,7 @@ const rawSignatureSchema = z
     id: z.number(),
     lower_is_better: z.boolean().nullish(),
     machine_platform: z.string().nullish(),
+    measurement_unit: z.string().nullish(),
     option_collection_hash: z.string(),
     signature_hash: z.string(),
     suite: z.string(),
@@ -53,10 +54,13 @@ export const performanceDataSchema = z.record(
 const rawAlertSchema = z
   .object({
     amount_pct: z.number().nullish(),
+    id: z.number(),
     is_regression: z.boolean(),
     new_value: z.number().nullish(),
     prev_value: z.number().nullish(),
+    related_summary_id: z.number().nullish(),
     series_signature: z.object({ id: z.number() }).loose(),
+    status: z.number(),
   })
   .loose();
 
@@ -73,6 +77,8 @@ const rawAlertSummarySchema = z
 
 export const alertSummaryResponseSchema = z
   .object({
+    count: z.number().nullish(),
+    next: z.string().nullish(),
     results: z.array(rawAlertSummarySchema),
   })
   .loose();
@@ -102,6 +108,7 @@ export function normalizeSignature(raw: RawSignature): Signature {
       ? {}
       : { lowerIsBetter: raw.lower_is_better }),
     ...(raw.machine_platform ? { machinePlatform: raw.machine_platform } : {}),
+    ...(raw.measurement_unit ? { measurementUnit: raw.measurement_unit } : {}),
     optionCollectionHash: raw.option_collection_hash,
     signatureHash: raw.signature_hash,
     suite: raw.suite,
@@ -124,20 +131,72 @@ export function normalizeDatum(
   };
 }
 
+/**
+ * Triage states from `treeherder/perf/models.py`.  Invalid and infra alerts
+ * describe test or machine problems rather than product changes, so they must
+ * not be drawn as regressions or improvements.
+ */
+export const ALERT_STATUS = {
+  UNTRIAGED: 0,
+  DOWNSTREAM: 1,
+  REASSIGNED: 2,
+  INVALID: 3,
+  ACKNOWLEDGED: 4,
+  INFRA: 5,
+} as const;
+
+export const ALERT_SUMMARY_STATUS = {
+  UNTRIAGED: 0,
+  DOWNSTREAM: 1,
+  REASSIGNED: 2,
+  INVALID: 3,
+  IMPROVEMENT: 4,
+  INVESTIGATING: 5,
+  WONTFIX: 6,
+  FIXED: 7,
+  BACKED_OUT: 8,
+  INFRA: 9,
+} as const;
+
+const HIDDEN_ALERT_STATUSES: readonly number[] = [
+  ALERT_STATUS.INVALID,
+  ALERT_STATUS.INFRA,
+];
+
+const HIDDEN_SUMMARY_STATUSES: readonly number[] = [
+  ALERT_SUMMARY_STATUS.INVALID,
+  ALERT_SUMMARY_STATUS.INFRA,
+];
+
+export function isReportableAlert(
+  summary: Pick<z.infer<typeof rawAlertSummarySchema>, 'status'>,
+  alert: Pick<z.infer<typeof rawAlertSchema>, 'status'>,
+): boolean {
+  return (
+    !HIDDEN_SUMMARY_STATUSES.includes(summary.status) &&
+    !HIDDEN_ALERT_STATUSES.includes(alert.status)
+  );
+}
+
 export function normalizeAlertMarker(
   summary: z.infer<typeof rawAlertSummarySchema>,
   alert: z.infer<typeof rawAlertSchema>,
 ): PerformanceAlertMarker {
   return {
+    alertId: alert.id,
+    alertStatus: alert.status,
     ...(alert.amount_pct == null ? {} : { amountPct: alert.amount_pct }),
     ...(summary.bug_number == null ? {} : { bugNumber: summary.bug_number }),
     isRegression: alert.is_regression,
     ...(alert.new_value == null ? {} : { newValue: alert.new_value }),
     ...(alert.prev_value == null ? {} : { prevValue: alert.prev_value }),
+    ...(alert.related_summary_id == null
+      ? {}
+      : { relatedSummaryId: alert.related_summary_id }),
     revision: summary.revision,
     seriesSignatureId: alert.series_signature.id,
-    status: summary.status,
     summaryId: summary.id,
+    summaryStatus: summary.status,
     timestamp: summary.push_timestamp * 1000,
   };
 }

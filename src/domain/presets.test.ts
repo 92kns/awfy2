@@ -105,6 +105,19 @@ describe('AWFY preset', () => {
       speedometer.series.filter((series) => series.application === 'safari-tp'),
     ).toEqual([]);
 
+    const windowsPageLoad = buildBenchmarkQueries(
+      preset.benchmarks,
+      windows,
+      'tp6-amazon-cold',
+      'cold-page-load',
+    )[0]!;
+    expect(
+      windowsPageLoad.series.filter(
+        (series) =>
+          series.application === 'safari' || series.application === 'safari-tp',
+      ),
+    ).toEqual([]);
+
     const macSpeedometer = buildBenchmarkQueries(
       preset.benchmarks,
       mac,
@@ -122,16 +135,8 @@ describe('AWFY preset', () => {
         .map((series) => series.platform),
     ).toEqual(['macosx1500-aarch64-shippable']);
 
-    const jsbench = buildBenchmarkQueries(
-      preset.benchmarks,
-      linux,
-      'ares6',
-      'benchmarks',
-    )[0]!;
     expect(
-      jsbench.series
-        .filter((series) => series.frameworkId === 11)
-        .map((series) => series.platform),
+      buildBenchmarkQueries(preset.benchmarks, linux, 'ares6', 'benchmarks'),
     ).toEqual([]);
     expect(
       buildBenchmarkQueries(

@@ -11,7 +11,7 @@
     GraphViewModel,
   } from '../domain/types';
   import Chart from './Chart.svelte';
-  import { pointTreeherderUrl } from './chart-options';
+  import { effectiveBaseline, pointTreeherderUrl } from './chart-options';
 
   let {
     graph,
@@ -46,6 +46,65 @@
       }),
       series,
     })),
+  );
+
+  /**
+   * The metrics strip is always absolute, while relative mode plots percent
+   * against a baseline series, and the strip's own percentage is a change over
+   * time. Two unlike percentages next to a percent axis have to be named, or an
+   * absolute measurement reads as a relative one.
+   */
+  let comparisonWindow = $derived(days <= 30 ? 7 : 30);
+  let metricsCaption = $derived(
+    valueMode === 'relative'
+      ? `Absolute ${graph.yLabel.toLocaleLowerCase()}; the chart above shows % vs ${
+          effectiveBaseline(graph.series, baseline) ?? 'the baseline series'
+        }. Percentages here are the change over the last ${comparisonWindow} days.`
+      : `Change over the last ${comparisonWindow} days.`,
+  );
+
+  const MAX_KEYBOARD_LINKS = 6;
+
+  /**
+   * Chart points are only reachable with a pointer, so the same alerts and
+   * pushes are also published as ordinary links.
+   */
+  let alertLinks = $derived(
+    graph.series
+      .flatMap((series) =>
+        (series.alerts ?? []).map((alert) => ({
+          alert,
+          seriesLabel: series.label,
+        })),
+      )
+      .filter((entry) => entry.alert.url)
+      .sort(
+        (left, right) =>
+          (right.alert.timestamp ?? 0) - (left.alert.timestamp ?? 0),
+      )
+      .slice(0, MAX_KEYBOARD_LINKS),
+  );
+
+  let pushLinks = $derived(
+    graph.series.flatMap((series) => {
+      const points = [...series.data]
+        .sort((left, right) => right.x - left.x)
+        .slice(0, MAX_KEYBOARD_LINKS);
+      return points.flatMap((point) => {
+        const url = pointTreeherderUrl(point, graph.project);
+        if (!url) return [];
+        return [
+          {
+            label: `${series.label} · ${numberFormat.format(point.y)} · ${
+              point.revision
+                ? point.revision.slice(0, 12)
+                : dateFormat.format(new Date(point.x))
+            }`,
+            url,
+          },
+        ];
+      });
+    }),
   );
 
   function ageLabel(timestamp: number | undefined): string {
@@ -146,15 +205,19 @@
     </span>
   </div>
 
-  <div class="legend" aria-label="Chart series">
+  <ul class="legend" aria-label="Chart series">
     {#each graph.series as series}
-      <span
-        class:hidden={visibleSeries && !visibleSeries.includes(series.label)}
-      >
+      <li class:hidden={visibleSeries && !visibleSeries.includes(series.label)}>
         <i style={`--series-color: ${series.color}`}></i>{series.label}
-      </span>
+      </li>
     {/each}
-  </div>
+  </ul>
+
+  {#if (graph.sources?.length ?? 0) > 1}
+    <p class="provenance">
+      Merged machine platforms: {graph.sources?.join(', ')}
+    </p>
+  {/if}
 
   <ul class="series-metrics" aria-label="Latest series metrics">
     {#each seriesWithMetrics as { series, metrics }}
@@ -163,7 +226,7 @@
       <li class:hidden={visibleSeries && !visibleSeries.includes(series.label)}>
         <strong>{series.label}</strong>
         {#if metrics.latestValue != null}
-          <span title="Latest value"
+          <span title={`Latest absolute value (${graph.yLabel})`}
             >{numberFormat.format(metrics.latestValue)}</span
           >
         {/if}
@@ -188,6 +251,7 @@
       </li>
     {/each}
   </ul>
+  <p class="metrics-caption">{metricsCaption}</p>
 
   {#if graph.series.some((series) => series.data.length > 0)}
     <div bind:this={chartHost} class="lazy-chart">
@@ -204,6 +268,39 @@
     </div>
   {:else}
     <div class="empty-chart">No data points in this time range.</div>
+  {/if}
+
+  {#if alertLinks.length > 0 || pushLinks.length > 0}
+    <details class="point-links">
+      <summary>Alerts and recent pushes</summary>
+      {#if alertLinks.length > 0}
+        <ul aria-label={`Perfherder alerts for ${graph.title}`}>
+          {#each alertLinks as { alert, seriesLabel }}
+            <li>
+              <span class={`marker ${alert.kind}`} aria-hidden="true"></span>
+              <a href={alert.url} target="_blank" rel="noreferrer">
+                {seriesLabel}: {alert.summary ??
+                  (alert.kind === 'regression' ? 'Regression' : 'Alert')}
+                {#if alert.timestamp != null}
+                  · {dateFormat.format(new Date(alert.timestamp))}
+                {/if}
+              </a>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+      {#if pushLinks.length > 0}
+        <ul aria-label={`Recent pushes for ${graph.title}`}>
+          {#each pushLinks as link}
+            <li>
+              <a href={link.url} target="_blank" rel="noreferrer"
+                >{link.label}</a
+              >
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </details>
   {/if}
 </article>
 
@@ -247,7 +344,52 @@
     flex-wrap: wrap;
     font-size: 0.78rem;
     gap: 0.45rem 1rem;
-    margin-bottom: 0.5rem;
+    list-style: none;
+    margin: 0 0 0.5rem;
+    padding: 0;
+  }
+
+  .provenance {
+    color: var(--muted);
+    font-size: 0.72rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .point-links {
+    font-size: 0.74rem;
+    margin-top: 0.75rem;
+  }
+
+  .point-links summary {
+    color: var(--muted);
+    cursor: pointer;
+    font-weight: 650;
+  }
+
+  .point-links ul {
+    display: grid;
+    gap: 0.2rem;
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+  }
+
+  .point-links li {
+    align-items: center;
+    display: flex;
+    gap: 0.35rem;
+  }
+
+  .point-links .marker {
+    background: #f7b955;
+    border-radius: 2px;
+    display: inline-block;
+    height: 0.5rem;
+    width: 0.5rem;
+  }
+
+  .point-links .marker.regression {
+    background: #ef476f;
   }
 
   .graph-meta {
@@ -270,13 +412,13 @@
     color: var(--muted);
   }
 
-  .legend span {
+  .legend li {
     align-items: center;
     display: inline-flex;
     gap: 0.35rem;
   }
 
-  .legend span.hidden {
+  .legend li.hidden {
     opacity: 0.38;
     text-decoration: line-through;
   }
@@ -289,13 +431,19 @@
     width: 0.55rem;
   }
 
+  .metrics-caption {
+    color: var(--muted);
+    font-size: 0.7rem;
+    margin: 0 0 0.75rem;
+  }
+
   .series-metrics {
     display: flex;
     flex-wrap: wrap;
     font-size: 0.72rem;
     gap: 0.4rem 0.8rem;
     list-style: none;
-    margin: 0 0 0.75rem;
+    margin: 0 0 0.35rem;
     padding: 0;
   }
 

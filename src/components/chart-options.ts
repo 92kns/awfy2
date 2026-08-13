@@ -24,15 +24,30 @@ export interface PreparedChartSeries {
   sourceLabel: string;
 }
 
+/**
+ * Alerts are filed against a push, so a revision is the most reliable link to a
+ * datum: an alert summary and a performance datum for the same push do not
+ * always share a timestamp once retriggers and backfills are involved.
+ */
 function alertForPoint(
   point: ChartPoint,
   alerts: readonly PerformanceAlert[] | undefined,
 ): PerformanceAlert | undefined {
   if (point.alert) return point.alert;
-  return alerts?.find(
-    (alert) =>
-      (alert.datumId != null && alert.datumId === point.datumId) ||
-      (alert.timestamp != null && alert.timestamp === point.x),
+  if (!alerts?.length) return undefined;
+  return (
+    alerts.find(
+      (alert) =>
+        alert.revision != null &&
+        point.revision != null &&
+        alert.revision === point.revision,
+    ) ??
+    alerts.find(
+      (alert) => alert.datumId != null && alert.datumId === point.datumId,
+    ) ??
+    alerts.find(
+      (alert) => alert.timestamp != null && alert.timestamp === point.x,
+    )
   );
 }
 
@@ -46,11 +61,22 @@ function copiedSeries(series: readonly ChartSeries[]): ChartSeries[] {
   }));
 }
 
+/**
+ * Resolves the baseline actually usable for these series.
+ *
+ * A shared URL can name a baseline that this graph does not contain, for
+ * example after switching benchmark or project. Falling back to the first
+ * series keeps relative mode honest: the axis label and the plotted values
+ * always describe the same baseline.
+ */
 export function effectiveBaseline(
   series: readonly ChartSeries[],
   baseline: string | null | undefined,
 ): string | undefined {
-  return baseline ?? series[0]?.label;
+  if (baseline != null && series.some((entry) => entry.label === baseline)) {
+    return baseline;
+  }
+  return series[0]?.label;
 }
 
 export function prepareChartSeries(

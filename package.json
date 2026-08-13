@@ -17,7 +17,8 @@
     "test:e2e": "npm run build && playwright test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify:dist": "node scripts/verify-dist-prefixes.mjs"
   },
   "dependencies": {
     "chart.js": "4.5.1",

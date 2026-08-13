@@ -435,6 +435,7 @@ Object.entries(SITES).forEach(([siteKey, siteLabel]) => {
       BENCHMARKS[bmKey] = benchmark;
       Object.entries(DESKTOP_APPS).forEach(([appKey, app]) => {
         benchmark.compare[appKey] = {
+          applicablePlatforms: app.applicablePlatforms,
           color: app.color,
           label: app.label,
           frameworkId: BROWSERTIME_FRAMEWORK_ID,

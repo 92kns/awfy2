@@ -11,6 +11,7 @@ permissions:
 jobs:
   configured-series:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -18,4 +19,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Fails when a baseline series stops resolving, when a preset change adds
+      # configurations Treeherder does not have, or on ambiguity and API errors.
       - run: npm run audit:live

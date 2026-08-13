@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import {
     readSelection,
     selectionUrl,
@@ -11,11 +11,14 @@
   import OverviewGrid from './components/OverviewGrid.svelte';
   import { loadBenchmark } from './domain/graphs';
   import { buildBenchmarkQueries } from './domain/presets';
+  import { isAbortError } from './treeherder/client';
   import type { BenchmarkLoadResult } from './domain/types';
   import preset from './presets/awfy';
 
   interface LoadState {
     complete: boolean;
+    /** The fetch key these results belong to, so a stale load cannot show. */
+    key: string;
     results: BenchmarkLoadResult[];
     total: number;
   }
@@ -23,7 +26,12 @@
   let selection = $state<AppSelection>(
     readSelection(preset, new URL(window.location.href)),
   );
-  let loadState = $state<LoadState>({ complete: false, results: [], total: 0 });
+  let loadState = $state<LoadState>({
+    complete: false,
+    key: '',
+    results: [],
+    total: 0,
+  });
 
   let view = $derived(preset.config.views[selection.platform]!);
   let queries = $derived(
@@ -51,6 +59,9 @@
     );
   });
   let errors = $derived(loadState.results.flatMap((result) => result.errors));
+  let warnings = $derived([
+    ...new Set(loadState.results.flatMap((result) => result.warnings)),
+  ]);
   let overviewResults = $derived(
     selection.benchmark === 'overview' ? loadState.results : [],
   );
@@ -86,24 +97,56 @@
     return () => window.removeEventListener('popstate', onPopState);
   });
 
+  // Only the parameters that change which data is fetched may restart loading.
+  // Chart mode, baseline, visibility, and subtest filtering are presentation
+  // state, so re-reading Treeherder for them would abort and refetch every
+  // series on a purely visual toggle.
+  let fetchKey = $derived(
+    JSON.stringify([
+      selection.platform,
+      selection.category,
+      selection.benchmark,
+      selection.detail,
+      selection.project,
+      selection.days,
+    ]),
+  );
+
   $effect(() => {
-    const currentQueries = queries;
-    const days = selection.days;
+    const key = fetchKey;
+    const currentQueries = untrack(() => queries);
+    const days = untrack(() => selection.days);
     const controller = new AbortController();
-    loadState = { complete: false, results: [], total: currentQueries.length };
+    loadState = {
+      complete: false,
+      key,
+      results: [],
+      total: currentQueries.length,
+    };
 
     const promises = currentQueries.map(async (query) => {
-      const result = await loadBenchmark(query, days, controller.signal);
-      if (!controller.signal.aborted) {
-        loadState.results = [...loadState.results, result].sort((left, right) =>
-          left.label.localeCompare(right.label),
-        );
+      try {
+        const result = await loadBenchmark(query, days, controller.signal);
+        if (!controller.signal.aborted) {
+          loadState.results = [...loadState.results, result].sort(
+            (left, right) => left.label.localeCompare(right.label),
+          );
+        }
+      } catch (error: unknown) {
+        // A route change aborts in-flight requests on purpose; anything else
+        // stays visible as a per-series diagnostic from loadBenchmark.
+        if (!isAbortError(error)) throw error;
       }
     });
 
-    void Promise.all(promises).then(() => {
-      if (!controller.signal.aborted) loadState.complete = true;
-    });
+    void Promise.all(promises)
+      .then(() => {
+        if (!controller.signal.aborted) loadState.complete = true;
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) loadState.complete = true;
+        console.error(error);
+      });
 
     return () => controller.abort();
   });
@@ -144,19 +187,27 @@
     {/if}
   </section>
 
-  <Diagnostics {errors} />
+  <Diagnostics {errors} {warnings} />
 
   {#if selection.benchmark === 'overview'}
     <OverviewGrid
       categoryLabel={view.categories[selection.category]?.label ??
         selection.category}
+      days={selection.days}
       results={overviewResults}
       onselect={chooseBenchmark}
     />
   {:else}
     <section class="graphs" aria-label="Performance graphs">
       {#each filteredGraphs as graph (graph.id)}
-        <GraphCard {graph} visibleSeries={selection.visibleSeries} />
+        <GraphCard
+          baseline={selection.baseline}
+          chartMode={selection.chart}
+          days={selection.days}
+          {graph}
+          valueMode={selection.values}
+          visibleSeries={selection.visibleSeries}
+        />
       {/each}
     </section>
   {/if}

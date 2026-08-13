@@ -75,6 +75,16 @@ export function improvementDirection(
 }
 
 /**
+ * How far a comparison point may sit from the requested historical timestamp.
+ *
+ * Without a tolerance a series holding only two distant samples reports the
+ * gap between them as a seven-day change, which then ranks as a large mover.
+ */
+export function comparisonToleranceMs(days: number): number {
+  return (comparisonDays(days) / 2) * DAY_MS;
+}
+
+/**
  * Finds the point nearest the requested historical timestamp.  The candidate
  * must predate the latest point so a duplicate current timestamp cannot become
  * its own comparison.
@@ -83,10 +93,12 @@ export function nearestEarlierPoint(
   points: readonly ChartPoint[],
   targetTimestamp: number,
   latestTimestamp: number,
+  toleranceMs = Number.POSITIVE_INFINITY,
 ): ChartPoint | undefined {
   let nearest: ChartPoint | undefined;
   for (const point of points) {
     if (point.x >= latestTimestamp) continue;
+    if (Math.abs(point.x - targetTimestamp) > toleranceMs) continue;
     if (
       !nearest ||
       Math.abs(point.x - targetTimestamp) <
@@ -126,7 +138,12 @@ export function seriesMetrics(
     lastTimestamp == null ? undefined : lastTimestamp - days * DAY_MS;
   const comparison =
     latest && targetTimestamp != null
-      ? nearestEarlierPoint(series.data, targetTimestamp, latest.x)
+      ? nearestEarlierPoint(
+          series.data,
+          targetTimestamp,
+          latest.x,
+          comparisonToleranceMs(options.days),
+        )
       : undefined;
   const delta =
     latest && comparison && targetTimestamp != null

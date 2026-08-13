@@ -1,10 +1,13 @@
 <script lang="ts">
+  import { seriesMetrics } from '../domain/chart-metrics';
   import type { BenchmarkLoadResult, GraphViewModel } from '../domain/types';
 
   let {
     result,
     onclick,
+    days,
   }: {
+    days: number;
     result: BenchmarkLoadResult;
     onclick: () => void;
   } = $props();
@@ -23,6 +26,10 @@
       ? graph.series
           .map((series) => ({
             label: series.label,
+            delta: seriesMetrics(series, {
+              days,
+              lowerIsBetter: graph!.lowerIsBetter,
+            }).delta,
             value: latest(graph!, series.label),
           }))
           .filter((item) => item.value !== null)
@@ -46,6 +53,16 @@
           <span class="metric">
             <span>{item.label}</span>
             <strong>{numberFormat.format(item.value!)}</strong>
+            {#if item.delta?.percentage != null}
+              <em
+                class:improved={item.delta.direction === 'improved'}
+                class:regressed={item.delta.direction === 'regressed'}
+              >
+                {item.delta.percentage > 0 ? '+' : ''}{numberFormat.format(
+                  item.delta.percentage,
+                )}%
+              </em>
+            {/if}
           </span>
         {/each}
       </span>
@@ -119,5 +136,18 @@
 
   .metric strong {
     font-size: 0.9rem;
+  }
+
+  .metric em {
+    font-size: 0.68rem;
+    font-style: normal;
+  }
+
+  .metric em.improved {
+    color: #2f9e64;
+  }
+
+  .metric em.regressed {
+    color: #e25570;
   }
 </style>

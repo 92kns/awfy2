@@ -1,50 +1,66 @@
 <script lang="ts">
+  import {
+    GroupedDiagnostics,
+    type DiagnosticKind,
+  } from '../domain/diagnostics';
   import type { SeriesQueryFailure } from '../domain/types';
 
-  let { errors }: { errors: SeriesQueryFailure[] } = $props();
+  let {
+    errors,
+    warnings = [],
+  }: { errors: SeriesQueryFailure[]; warnings?: string[] } = $props();
+  let diagnostics = $derived(GroupedDiagnostics.fromResults(errors));
 
-  let grouped = $derived.by(() => {
-    const groups = new Map<string, SeriesQueryFailure[]>();
-    for (const error of errors) {
-      const key = `${error.status} — ${error.message}`;
-      groups.set(key, [...(groups.get(key) ?? []), error]);
-    }
-    return [...groups.entries()].sort(
-      (left, right) => right[1].length - left[1].length,
-    );
-  });
-
-  function statusLabel(status: SeriesQueryFailure['status']): string {
-    return status === 'not-found'
-      ? 'not found'
-      : status === 'invalid-response'
+  function statusLabel(kind: DiagnosticKind): string {
+    return kind === 'unsupported'
+      ? 'unresolved configuration'
+      : kind === 'invalid-response'
         ? 'invalid response'
-        : status === 'network-error'
+        : kind === 'network'
           ? 'network error'
-          : 'ambiguous';
+          : 'ambiguous signature';
   }
 </script>
 
-{#if errors.length > 0}
+{#if warnings.length > 0}
+  <!-- Degraded enrichment, not a failure: the graphs below are still valid. -->
+  <section
+    class="diagnostics warnings"
+    aria-label="Data warnings"
+    role="status"
+  >
+    <ul>
+      {#each warnings as warning}
+        <li>{warning}</li>
+      {/each}
+    </ul>
+  </section>
+{/if}
+
+{#if diagnostics.all.length > 0}
   <section class="diagnostics" aria-label="Diagnostics">
     <details>
+      <!-- A single heading keeps the document outline h1 → h2 → h3. -->
       <summary>
-        {errors.length} comparison{errors.length === 1 ? '' : 's'} unavailable
-        <span class="summary-hint">View grouped details</span>
+        <h2>
+          {diagnostics.all.length} configured comparison{diagnostics.all
+            .length === 1
+            ? ''
+            : 's'} need attention
+          <span class="summary-hint">View grouped details</span>
+        </h2>
       </summary>
       <div class="groups">
-        {#each grouped as [key, entries]}
+        {#each diagnostics.all as diagnostic}
           <section class="group">
-            <h3>{entries.length} × {statusLabel(entries[0]!.status)}</h3>
-            <p>{key.slice(key.indexOf('—') + 1).trim()}</p>
-            <ul>
-              {#each entries as error}
-                <li>
-                  <strong>{error.series.label}</strong>
-                  <small>{error.series.platform} / {error.series.suite}</small>
-                </li>
-              {/each}
-            </ul>
+            <h3>{statusLabel(diagnostic.kind)}</h3>
+            <p>{diagnostic.message}</p>
+            <strong>{diagnostic.series.label}</strong>
+            <small>
+              {diagnostic.aliases
+                .map((alias) => `${alias.platform} / ${alias.suite}`)
+                .join(', ')}
+            </small>
           </section>
         {/each}
       </div>
@@ -63,9 +79,28 @@
     padding: 0.65rem 0.8rem;
   }
 
+  .warnings {
+    border-color: color-mix(in srgb, #e5a45e 45%, var(--border));
+  }
+
+  .warnings ul {
+    display: grid;
+    gap: 0.3rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
   summary {
     cursor: pointer;
     font-weight: 650;
+  }
+
+  summary h2 {
+    display: inline;
+    font-size: inherit;
+    font-weight: inherit;
+    margin: 0;
   }
 
   .summary-hint {
@@ -99,14 +134,10 @@
     margin-top: 0.2rem;
   }
 
-  ul {
-    list-style: none;
-    margin: 0.4rem 0 0;
-    padding: 0;
-  }
-
-  li + li {
-    margin-top: 0.3rem;
+  .group > strong {
+    color: var(--text);
+    display: block;
+    margin-top: 0.4rem;
   }
 
   small {

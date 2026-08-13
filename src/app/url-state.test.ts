@@ -23,6 +23,42 @@ describe('URL state', () => {
     expect(readSelection(preset, url)).toEqual(selection);
   });
 
+  it('distinguishes every series hidden from no series filter', () => {
+    const base = {
+      benchmark: 'speedometer3-android',
+      category: 'benchmarks',
+      chart: 'scatter' as const,
+      days: 30,
+      detail: 'summary' as const,
+      platform: 'androidGalaxyA55',
+      baseline: null,
+      project: 'configured' as const,
+      subtestSearch: '',
+      values: 'absolute' as const,
+    };
+    const current = new URL('https://example.test/');
+
+    const hidden = selectionUrl({ ...base, visibleSeries: [] }, current);
+    expect(hidden.searchParams.get('series')).toBe('');
+    expect(readSelection(preset, hidden).visibleSeries).toEqual([]);
+
+    const unfiltered = selectionUrl({ ...base, visibleSeries: null }, current);
+    expect(unfiltered.searchParams.has('series')).toBe(false);
+    expect(readSelection(preset, unfiltered).visibleSeries).toBeNull();
+  });
+
+  it('drops series and baselines that do not apply to the selected platform', () => {
+    const selection = readSelection(
+      preset,
+      new URL(
+        'https://example.test/?platform=win11&category=benchmarks&benchmark=raptor-desktop-speedometer3&baseline=Safari&series=Firefox,Safari,Unknown',
+      ),
+    );
+
+    expect(selection.baseline).toBeNull();
+    expect(selection.visibleSeries).toEqual(['Firefox']);
+  });
+
   it('falls back from invalid external state', () => {
     const selection = readSelection(
       preset,
@@ -58,5 +94,15 @@ describe('URL state', () => {
       subtestSearch: '',
       visibleSeries: null,
     });
+  });
+
+  it('falls back from a benchmark that is inapplicable to the platform', () => {
+    const selection = readSelection(
+      preset,
+      new URL(
+        'https://example.test/?platform=linux64&category=benchmarks&benchmark=ares6',
+      ),
+    );
+    expect(selection.benchmark).toBe('overview');
   });
 });

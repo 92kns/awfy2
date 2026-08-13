@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { AppSelection } from '../app/url-state';
+  import { buildBenchmarkQueries } from '../domain/presets';
   import type { DashboardPreset } from '../domain/types';
 
   let {
@@ -17,6 +18,18 @@
   let view = $derived(preset.config.views[selection.platform]!);
   let category = $derived(view.categories[selection.category]!);
   let isBenchmark = $derived(selection.benchmark !== 'overview');
+  let applicableBenchmarks = $derived(
+    category.suites.filter(
+      (benchmarkId) =>
+        buildBenchmarkQueries(
+          preset.benchmarks,
+          view,
+          benchmarkId,
+          selection.category,
+          { project: selection.project },
+        ).length > 0,
+    ),
+  );
 
   function resetForContext(next: Partial<AppSelection>): AppSelection {
     return {
@@ -100,7 +113,7 @@
         onchange={(event) => chooseBenchmark(event.currentTarget.value)}
       >
         <option value="overview">Overview</option>
-        {#each [...category.suites].sort( (left, right) => preset.benchmarks[left]!.label.localeCompare(preset.benchmarks[right]!.label) ) as id}
+        {#each [...applicableBenchmarks].sort( (left, right) => preset.benchmarks[left]!.label.localeCompare(preset.benchmarks[right]!.label) ) as id}
           <option value={id}>{preset.benchmarks[id]!.label}</option>
         {/each}
       </select>

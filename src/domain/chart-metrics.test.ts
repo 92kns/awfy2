@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DAY_MS,
   comparisonDays,
+  comparisonToleranceMs,
   freshnessForTimestamp,
   improvementDirection,
   nearestEarlierPoint,
@@ -86,6 +87,46 @@ describe('chart series metrics', () => {
     );
     expect(seriesMetrics(series(points), { days: 30, now }).latest?.y).toBe(7);
     expect(points).toEqual(snapshot);
+  });
+
+  it('refuses a comparison point far outside the requested window', () => {
+    const sparse = series([
+      { x: now - 300 * DAY_MS, y: 200 },
+      { x: now - DAY_MS, y: 100 },
+    ]);
+
+    expect(
+      seriesMetrics(sparse, { days: 30, lowerIsBetter: true, now }).delta,
+    ).toBeUndefined();
+    // The same two points are a legitimate comparison for a year-long view.
+    expect(
+      seriesMetrics(sparse, { days: 365, lowerIsBetter: true, now }).delta,
+    ).toBeUndefined();
+    expect(
+      nearestEarlierPoint(
+        sparse.data,
+        now - 8 * DAY_MS,
+        now - DAY_MS,
+        comparisonToleranceMs(30),
+      ),
+    ).toBeUndefined();
+    expect(
+      nearestEarlierPoint(sparse.data, now - 8 * DAY_MS, now - DAY_MS),
+    ).toEqual(sparse.data[0]);
+  });
+
+  it('accepts a comparison point inside the tolerance', () => {
+    const metrics = seriesMetrics(
+      series([
+        { x: now - 9 * DAY_MS, y: 120 },
+        { x: now - DAY_MS, y: 100 },
+      ]),
+      { days: 30, lowerIsBetter: true, now },
+    );
+    expect(metrics.delta).toMatchObject({
+      comparisonValue: 120,
+      direction: 'improved',
+    });
   });
 
   it('makes the improvement semantics explicit when direction is unavailable', () => {

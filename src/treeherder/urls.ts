@@ -32,18 +32,38 @@ export function repositoriesUrl(): URL {
   return new URL('/api/repository/', TREEHERDER);
 }
 
+/**
+ * Treeherder caps `limit` at 100 regardless of the requested value, so more
+ * than one page has to be requested for a noisy signature over a long range.
+ */
+export const ALERT_SUMMARY_PAGE_SIZE = 100;
+
 export function alertSummaryUrl(
-  signatureId: number,
+  suite: string,
+  frameworkId: number,
   repositoryId: number,
   intervalSeconds: number,
-  limit = 100,
+  page = 1,
 ): URL {
   const url = new URL('/api/performance/alertsummary/', TREEHERDER);
-  url.searchParams.set('alerts__series_signature', String(signatureId));
+  // Treeherder only offers an exact single-signature relationship filter.
+  // Parent signatures frequently have no alert of their own even when their
+  // subtests do, so use the API's suite text + framework filters and retain
+  // only the requested signature ids after validating the response.
+  url.searchParams.set('filter_text', suite);
+  url.searchParams.set('framework', String(frameworkId));
   url.searchParams.set('repository', String(repositoryId));
-  url.searchParams.set('limit', String(limit));
+  url.searchParams.set('limit', String(ALERT_SUMMARY_PAGE_SIZE));
   url.searchParams.set('timerange', String(intervalSeconds));
+  if (page > 1) url.searchParams.set('page', String(page));
   return url;
+}
+
+/** The Perfherder alert-summary view for one summary id. */
+export function perfherderAlertUrl(summaryId: number): string {
+  const url = new URL('/perfherder/alerts', TREEHERDER);
+  url.searchParams.set('id', String(summaryId));
+  return url.toString();
 }
 
 /** A stable Treeherder jobs view for one revision in a repository. */

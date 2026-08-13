@@ -1,4 +1,5 @@
 import type { DashboardPreset } from '../domain/types';
+import { buildBenchmarkQueries } from '../domain/presets';
 
 export const DETAIL_MODES = ['summary', 'subtests'] as const;
 export type DetailMode = (typeof DETAIL_MODES)[number];
@@ -57,25 +58,35 @@ export function readSelection(preset: DashboardPreset, url: URL): AppSelection {
     view.categories[category] ?? Object.values(view.categories)[0]!;
 
   const requestedBenchmark = url.searchParams.get('benchmark') ?? 'overview';
-  const benchmark =
+  const categoryBenchmark =
     requestedBenchmark === 'overview' ||
     categoryPreset.suites.includes(requestedBenchmark)
       ? requestedBenchmark
       : 'overview';
+  const benchmark =
+    categoryBenchmark === 'overview' ||
+    buildBenchmarkQueries(preset.benchmarks, view, categoryBenchmark, category)
+      .length > 0
+      ? categoryBenchmark
+      : 'overview';
 
   const requestedDays = Number(url.searchParams.get('days'));
+  // `series=` means "every series hidden"; an absent parameter means "all
+  // visible". Reading them as the same value would silently discard the state.
+  const hasSeries = url.searchParams.has('series');
   const days = preset.config.dayRange.includes(requestedDays)
     ? requestedDays
     : preset.config.default.dayRange;
   const series = url.searchParams.get('series');
-  const benchmarkIds =
-    benchmark === 'overview' ? categoryPreset.suites : [benchmark];
+  const project = enumValue(
+    url.searchParams.get('project'),
+    PROJECT_MODES,
+    'configured',
+  );
   const availableBaselines = new Set(
-    benchmarkIds.flatMap((id) =>
-      Object.values(preset.benchmarks[id]?.compare ?? {}).map(
-        (series) => series.label,
-      ),
-    ),
+    buildBenchmarkQueries(preset.benchmarks, view, benchmark, category, {
+      project,
+    }).flatMap((query) => query.series.map((candidate) => candidate.label)),
   );
   const requestedBaseline = url.searchParams.get('baseline');
   const baseline =
@@ -91,17 +102,17 @@ export function readSelection(preset: DashboardPreset, url: URL): AppSelection {
     detail: enumValue(url.searchParams.get('detail'), DETAIL_MODES, 'summary'),
     platform,
     baseline,
-    project: enumValue(
-      url.searchParams.get('project'),
-      PROJECT_MODES,
-      'configured',
-    ),
+    project,
     subtestSearch:
       url.searchParams.get('subtest') ??
       url.searchParams.get('subtestSearch') ??
       '',
     values: enumValue(url.searchParams.get('values'), VALUE_MODES, 'absolute'),
-    visibleSeries: series ? series.split(',').filter(Boolean) : null,
+    visibleSeries: hasSeries
+      ? (series ?? '')
+          .split(',')
+          .filter((label) => label && availableBaselines.has(label))
+      : null,
   };
 }
 
@@ -120,7 +131,7 @@ export function selectionUrl(selection: AppSelection, current: URL): URL {
   if (selection.baseline) {
     url.searchParams.set('baseline', selection.baseline);
   }
-  if (selection.visibleSeries) {
+  if (selection.visibleSeries !== null) {
     url.searchParams.set('series', selection.visibleSeries.join(','));
   }
   if (selection.subtestSearch) {

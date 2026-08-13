@@ -58,10 +58,15 @@ export function buildBenchmarkQueries(
       resolveSeries(entry, view, options.project),
     );
 
+    // Do not expose a dead overview card or selector option when every series
+    // for a benchmark is explicitly inapplicable to the selected platform.
+    if (series.length === 0) return [];
+
     return [
       {
         benchmarkId: id,
         ...(benchmark.docUrl ? { docUrl: benchmark.docUrl } : {}),
+        includeAlerts: benchmarkId !== 'overview',
         includeSubtests:
           benchmarkId !== 'overview' && options.detail === 'subtests',
         label: benchmark.label,

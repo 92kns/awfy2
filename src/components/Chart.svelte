@@ -39,6 +39,7 @@
   } = $props();
   let canvas: HTMLCanvasElement;
   let chartInstance: Chart<'scatter', ChartPoint[]> | undefined;
+  let noComparableData = $state(false);
 
   const numberFormat = new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 2,
@@ -73,6 +74,12 @@
       chartMode,
       valueMode,
     });
+    // Relative mode drops points with no nearby baseline sample rather than
+    // implying a comparison that never happened; say so instead of showing an
+    // empty chart.
+    noComparableData =
+      graph.series.some((series) => series.data.length > 0) &&
+      datasets.every((series) => series.data.length === 0);
     const config: ChartConfiguration<'scatter', ChartPoint[]> = {
       type: 'scatter',
       data: {
@@ -205,6 +212,11 @@
     point to open its Treeherder push.
   </span>
 </div>
+{#if noComparableData}
+  <p class="no-comparison" role="status">
+    No points share a baseline sample close enough to compare in this range.
+  </p>
+{/if}
 <div class="chart-container">
   <canvas
     bind:this={canvas}
@@ -236,6 +248,12 @@
 
   .chart-toolbar button:hover {
     border-color: var(--accent);
+  }
+
+  .no-comparison {
+    color: var(--muted);
+    font-size: 0.76rem;
+    margin: 0 0 0.4rem;
   }
 
   .chart-container {

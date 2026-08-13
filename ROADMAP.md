@@ -30,6 +30,9 @@ Acceptance criteria:
   warnings.
 - External responses remain runtime validated and abortable.
 - Unit tests remain deterministic; live audits run only in their own workflow.
+- Legacy not-found configurations remain visible, non-blocking audit debt until
+  their remaining platform/suite applicability is curated, but the recorded
+  baseline in `scripts/audit-baseline.txt` makes any new breakage fail.
 
 ## Track B: progressive, shareable exploration
 
