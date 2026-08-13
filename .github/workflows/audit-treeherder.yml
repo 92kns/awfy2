@@ -2,7 +2,8 @@ name: Audit Treeherder configuration
 
 on:
   schedule:
-    - cron: '23 8 * * 1-5'
+    # Weekly on Monday at 08:23 UTC; manual runs remain available at any time.
+    - cron: '23 8 * * 1'
   workflow_dispatch:
 
 permissions:
