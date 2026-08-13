@@ -1,24 +1,30 @@
 import { z } from 'zod';
 import type {
   PerformanceGraph,
+  PerformanceAlertMarker,
   ResolvedSeries,
   SeriesQueryResult,
   Signature,
 } from '../domain/types';
 import {
+  alertSummaryResponseSchema,
   normalizeDatum,
+  normalizeAlertMarker,
   normalizeSignature,
   optionCollectionsSchema,
   performanceDataSchema,
+  repositoriesResponseSchema,
   signaturesResponseSchema,
   subtestsResponseSchema,
 } from './schemas';
 import { indexOptionCollections, resolveSignature } from './signatures';
 import {
+  alertSummaryUrl,
   optionCollectionsUrl,
   perfherderGraphUrl,
   performanceDataUrls,
   platformSignaturesUrl,
+  repositoriesUrl,
   subtestsUrl,
 } from './urls';
 
@@ -78,20 +84,73 @@ async function fetchPerformanceGraphs(
   intervalSeconds: number,
   signal: AbortSignal,
 ): Promise<PerformanceGraph[]> {
-  const responses = await Promise.all(
-    performanceDataUrls(
-      series,
-      signatures.map((signature) => signature.id),
-      intervalSeconds,
-    ).map((url) => fetchJson(url, performanceDataSchema, signal)),
-  );
+  const repositoryId = await fetchRepositoryId(series.project, signal);
+  const [responses, alerts] = await Promise.all([
+    Promise.all(
+      performanceDataUrls(
+        series,
+        signatures.map((signature) => signature.id),
+        intervalSeconds,
+      ).map((url) => fetchJson(url, performanceDataSchema, signal)),
+    ),
+    fetchAlerts(signatures, repositoryId, intervalSeconds, signal),
+  ]);
   const byHash = Object.assign({}, ...responses);
 
   return signatures.map((signature) => ({
-    data: (byHash[signature.signatureHash] ?? []).map(normalizeDatum),
+    alerts: alerts.get(signature.id) ?? [],
+    data: (byHash[signature.signatureHash] ?? []).map(
+      (datum: Parameters<typeof normalizeDatum>[0]) =>
+        normalizeDatum(datum, series.project),
+    ),
     meta: signature,
     perfherderUrl: perfherderGraphUrl(series, [signature.id], intervalSeconds),
   }));
+}
+
+async function fetchRepositoryId(
+  project: string | undefined,
+  signal: AbortSignal,
+): Promise<number> {
+  const repository = (
+    await fetchJson(repositoriesUrl(), repositoriesResponseSchema, signal)
+  ).find((candidate) => candidate.name === (project ?? 'mozilla-central'));
+
+  if (!repository) {
+    throw new Error(
+      `Treeherder did not return a repository for ${project ?? 'mozilla-central'}.`,
+    );
+  }
+
+  return repository.id;
+}
+
+async function fetchAlerts(
+  signatures: readonly Signature[],
+  repositoryId: number,
+  intervalSeconds: number,
+  signal: AbortSignal,
+): Promise<Map<number, PerformanceAlertMarker[]>> {
+  const summaries = await Promise.all(
+    signatures.map((signature) =>
+      fetchJson(
+        alertSummaryUrl(signature.id, repositoryId, intervalSeconds),
+        alertSummaryResponseSchema,
+        signal,
+      ),
+    ),
+  );
+
+  return new Map(
+    signatures.map((signature, index) => [
+      signature.id,
+      summaries[index]!.results.flatMap((summary) =>
+        summary.alerts
+          .filter((alert) => alert.series_signature.id === signature.id)
+          .map((alert) => normalizeAlertMarker(summary, alert)),
+      ),
+    ]),
+  );
 }
 
 export async function querySeries(

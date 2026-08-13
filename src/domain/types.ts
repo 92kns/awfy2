@@ -3,6 +3,13 @@ export const TREEHERDER_PROJECTS = ['mozilla-central', 'autoland'] as const;
 export type TreeherderProject = (typeof TREEHERDER_PROJECTS)[number] | string;
 
 export interface SeriesTemplate {
+  /**
+   * View machine-platform IDs on which this series is expected to exist.
+   *
+   * This is applied before `platformSuffix`, so presets can describe valid
+   * combinations without expanding queries for every platform in a view.
+   */
+  applicablePlatforms?: readonly string[] | undefined;
   application?: string | undefined;
   color: string;
   extraOptions?: string[] | undefined;
@@ -73,12 +80,10 @@ export interface BenchmarkQuery {
 
 export interface Datum {
   datumId: number;
-  /** Treeherder metadata is optional because older data responses omit it. */
-  jobId?: number | string | undefined;
-  pushId?: number | string | undefined;
-  pushUrl?: string | undefined;
-  revision?: string | undefined;
-  revisionUrl?: string | undefined;
+  jobId: number;
+  pushId: number;
+  pushUrl: string;
+  revision: string;
   timestamp: number;
   value: number;
 }
@@ -103,10 +108,24 @@ export type SignatureResolution =
   | { status: 'ambiguous'; candidates: Signature[] };
 
 export interface PerformanceGraph {
-  alerts?: PerformanceAlert[] | undefined;
+  alerts: PerformanceAlertMarker[];
   data: Datum[];
   meta: Signature;
   perfherderUrl: string;
+}
+
+/** A regression or improvement marker associated with one graph signature. */
+export interface PerformanceAlertMarker {
+  amountPct?: number | undefined;
+  bugNumber?: number | undefined;
+  isRegression: boolean;
+  newValue?: number | undefined;
+  prevValue?: number | undefined;
+  revision: string;
+  seriesSignatureId: number;
+  status: number;
+  summaryId: number;
+  timestamp: number;
 }
 
 export interface SeriesQuerySuccess {

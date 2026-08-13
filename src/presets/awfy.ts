@@ -16,6 +16,7 @@ import {
 } from './network';
 
 interface AppDefinition {
+  applicablePlatforms?: readonly string[];
   color: string;
   extraOptions?: string[];
   label: string;
@@ -34,6 +35,23 @@ interface TestDefinition {
 const TALOS_FRAMEWORK_ID = 1;
 const JSBENCH_FRAMEWORK_ID = 11;
 const BROWSERTIME_FRAMEWORK_ID = 13;
+
+const CURRENT_MAC_PLATFORMS = [
+  'macosx1500-aarch64-shippable',
+  'macosx1470-64-shippable',
+] as const;
+const SAFARI_TP_PLATFORMS = ['macosx1500-aarch64-shippable'] as const;
+const JSBENCH_PLATFORMS = ['linux2404-64-shippable'] as const;
+const UNITY_FIREFOX_PLATFORMS = [
+  'linux1804-64-shippable-qr',
+  'linux2404-64-shippable',
+  'macosx1470-64-shippable',
+  'windows11-64-24h2-shippable',
+] as const;
+const UNITY_CHROME_PLATFORMS = [
+  'linux1804-64-shippable-qr',
+  'macosx1470-64-shippable',
+] as const;
 
 const PALETTE = {
   blue: '#446e9e',
@@ -118,11 +136,13 @@ const DESKTOP_APPS: Record<string, AppDefinition> = {
     name: 'safari',
     label: 'Safari',
     color: PALETTE.yellow,
+    applicablePlatforms: CURRENT_MAC_PLATFORMS,
   },
   safari_tp: {
     name: 'safari-tp',
     label: 'Safari Technology Preview',
     color: PALETTE.indigo,
+    applicablePlatforms: SAFARI_TP_PLATFORMS,
   },
 };
 
@@ -188,7 +208,6 @@ const TALOS_TESTS: Record<string, TestDefinition> = {
   rasterflood_gradient: { label: 'Rasterflood (Gradient)' },
   rasterflood_svg: { label: 'Rasterflood SVG' },
   tabpaint: {},
-  tabswitch: {},
   tart: {},
   tp5o: {},
   ts_paint: {},
@@ -242,6 +261,18 @@ const RAPTOR_TESTS: Record<string, TestDefinition> = {
 };
 
 const RAPTOR_BENCHMARKS: BenchmarkMap = {};
+const UNITY_WEBGL_APPS: Record<string, AppDefinition> = {
+  firefox: {
+    ...DESKTOP_FIREFOX_APPS.firefox!,
+    // Unity has live Firefox data on mozilla-central, not autoland.
+    applicablePlatforms: UNITY_FIREFOX_PLATFORMS,
+    project: PROJECT,
+  },
+  chrome: {
+    ...DESKTOP_APPS.chrome!,
+    applicablePlatforms: UNITY_CHROME_PLATFORMS,
+  },
+};
 Object.entries(RAPTOR_TESTS).forEach(([testKey, test]) => {
   const bmKey = `raptor-desktop-${testKey}`;
   const benchmark: BenchmarkPreset = {
@@ -249,11 +280,17 @@ Object.entries(RAPTOR_TESTS).forEach(([testKey, test]) => {
     label: test.label ?? testKey,
   };
   RAPTOR_BENCHMARKS[bmKey] = benchmark;
-  const apps = testKey.startsWith('wasm') ? WASM_APPS : DESKTOP_APPS;
+  const apps =
+    testKey === 'unity-webgl'
+      ? UNITY_WEBGL_APPS
+      : testKey.startsWith('wasm')
+        ? WASM_APPS
+        : DESKTOP_APPS;
   Object.entries(apps).forEach(([appKey, app]) => {
     benchmark.compare[appKey] = {
       color: app.color,
       label: app.label,
+      applicablePlatforms: app.applicablePlatforms,
       frameworkId: BROWSERTIME_FRAMEWORK_ID,
       suite: [testKey, app.suiteSuffix].filter(Boolean).join('-'),
       application: app.name,
@@ -307,6 +344,7 @@ Object.entries(JSBENCH_TESTS).forEach(([testKey, test]) => {
     benchmark.compare[appKey] = {
       color: app.color,
       label: app.label,
+      applicablePlatforms: JSBENCH_PLATFORMS,
       frameworkId: JSBENCH_FRAMEWORK_ID,
       suite: `${testKey}-${appKey}`,
       project: app.project,

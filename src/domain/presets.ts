@@ -21,20 +21,21 @@ export function resolveSeries(
     projectOverride !== 'configured'
       ? projectOverride
       : (view.project ?? series.project);
+  const platforms = series.platform ? [series.platform] : view.platforms;
 
-  if (series.platform) {
-    return [
-      { ...series, ...(project ? { project } : {}), platform: series.platform },
-    ];
-  }
-
-  return view.platforms.map((platform) => ({
-    ...series,
-    ...(project ? { project } : {}),
-    platform: series.platformSuffix
-      ? `${platform}${series.platformSuffix}`
-      : platform,
-  }));
+  return platforms
+    .filter(
+      (platform) =>
+        !series.applicablePlatforms ||
+        series.applicablePlatforms.includes(platform),
+    )
+    .map((platform) => ({
+      ...series,
+      ...(project ? { project } : {}),
+      platform: series.platformSuffix
+        ? `${platform}${series.platformSuffix}`
+        : platform,
+    }));
 }
 
 export function buildBenchmarkQueries(

@@ -28,6 +28,35 @@ export function optionCollectionsUrl(): URL {
   return new URL('/api/optioncollectionhash/', TREEHERDER);
 }
 
+export function repositoriesUrl(): URL {
+  return new URL('/api/repository/', TREEHERDER);
+}
+
+export function alertSummaryUrl(
+  signatureId: number,
+  repositoryId: number,
+  intervalSeconds: number,
+  limit = 100,
+): URL {
+  const url = new URL('/api/performance/alertsummary/', TREEHERDER);
+  url.searchParams.set('alerts__series_signature', String(signatureId));
+  url.searchParams.set('repository', String(repositoryId));
+  url.searchParams.set('limit', String(limit));
+  url.searchParams.set('timerange', String(intervalSeconds));
+  return url;
+}
+
+/** A stable Treeherder jobs view for one revision in a repository. */
+export function treeherderPushUrl(
+  project: string | undefined,
+  revision: string,
+): string {
+  const url = new URL('/jobs', TREEHERDER);
+  url.searchParams.set('repo', project ?? DEFAULT_PROJECT);
+  url.searchParams.set('revision', revision);
+  return url.toString();
+}
+
 export function performanceDataUrls(
   series: Pick<ResolvedSeries, 'frameworkId' | 'project'>,
   signatureIds: readonly number[],

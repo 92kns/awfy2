@@ -42,7 +42,18 @@ function success(
   return {
     graphs: [
       {
-        data: [{ datumId: id, timestamp, value: id * 10 }],
+        alerts: [],
+        data: [
+          {
+            datumId: id,
+            jobId: id,
+            pushId: id,
+            pushUrl: `https://treeherder.mozilla.org/jobs?repo=autoland&revision=${id}`,
+            revision: String(id),
+            timestamp,
+            value: id * 10,
+          },
+        ],
         meta: { ...meta, id, signatureHash: `sig-${id}` },
         perfherderUrl: `https://treeherder.mozilla.org/perf.html#/graphs?timerange=10&series=autoland%2C${id}%2C1%2C13`,
       },
