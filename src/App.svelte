@@ -6,7 +6,9 @@
     type AppSelection,
   } from './app/url-state';
   import Controls from './components/Controls.svelte';
+  import Diagnostics from './components/Diagnostics.svelte';
   import GraphCard from './components/GraphCard.svelte';
+  import OverviewGrid from './components/OverviewGrid.svelte';
   import { loadBenchmark } from './domain/graphs';
   import { buildBenchmarkQueries } from './domain/presets';
   import type { BenchmarkLoadResult } from './domain/types';
@@ -30,9 +32,10 @@
       view,
       selection.benchmark,
       selection.category,
+      { detail: selection.detail, project: selection.project },
     ),
   );
-  let availableSeries = $derived.by(() => [
+  let availableSeries = $derived([
     ...new Set(
       queries.flatMap((query) => query.series.map((series) => series.label)),
     ),
@@ -40,12 +43,38 @@
   let loadedGraphs = $derived(
     loadState.results.flatMap((result) => result.graphs),
   );
+  let filteredGraphs = $derived.by(() => {
+    const search = selection.subtestSearch.trim().toLocaleLowerCase();
+    if (!search || selection.detail !== 'subtests') return loadedGraphs;
+    return loadedGraphs.filter((graph) =>
+      graph.title.toLocaleLowerCase().includes(search),
+    );
+  });
   let errors = $derived(loadState.results.flatMap((result) => result.errors));
+  let overviewResults = $derived(
+    selection.benchmark === 'overview' ? loadState.results : [],
+  );
+  let resultCount = $derived(
+    selection.detail === 'subtests' && selection.subtestSearch.trim()
+      ? `${filteredGraphs.length} of ${loadedGraphs.length}`
+      : String(filteredGraphs.length),
+  );
 
   function changeSelection(next: AppSelection, replace = false) {
     selection = next;
     const url = selectionUrl(next, new URL(window.location.href));
     window.history[replace ? 'replaceState' : 'pushState']({}, '', url);
+  }
+
+  function chooseBenchmark(benchmark: string) {
+    changeSelection({
+      ...selection,
+      benchmark,
+      detail: 'summary',
+      baseline: null,
+      subtestSearch: '',
+      visibleSeries: null,
+    });
   }
 
   onMount(() => {
@@ -103,33 +132,34 @@
       1
         ? ''
         : 's'}…
-    {:else if loadedGraphs.length === 0}
+    {:else if selection.benchmark === 'overview'}
+      Showing {overviewResults.length} benchmark summary card{overviewResults.length ===
+      1
+        ? ''
+        : 's'}.
+    {:else if filteredGraphs.length === 0}
       No matching performance data was found.
     {:else}
-      Showing {loadedGraphs.length} graph{loadedGraphs.length === 1 ? '' : 's'} from
-      Treeherder.
+      Showing {resultCount} graph{filteredGraphs.length === 1 ? '' : 's'} from Treeherder.
     {/if}
   </section>
 
-  {#if errors.length > 0}
-    <details class="warnings">
-      <summary>{errors.length} configured series could not be loaded</summary>
-      <ul>
-        {#each errors as error}
-          <li>
-            <strong>{error.series.label}</strong> — {error.message}
-            <small>{error.series.platform} / {error.series.suite}</small>
-          </li>
-        {/each}
-      </ul>
-    </details>
-  {/if}
+  <Diagnostics {errors} />
 
-  <section class="graphs" aria-label="Performance graphs">
-    {#each loadedGraphs as graph (graph.id)}
-      <GraphCard {graph} visibleSeries={selection.visibleSeries} />
-    {/each}
-  </section>
+  {#if selection.benchmark === 'overview'}
+    <OverviewGrid
+      categoryLabel={view.categories[selection.category]?.label ??
+        selection.category}
+      results={overviewResults}
+      onselect={chooseBenchmark}
+    />
+  {:else}
+    <section class="graphs" aria-label="Performance graphs">
+      {#each filteredGraphs as graph (graph.id)}
+        <GraphCard {graph} visibleSeries={selection.visibleSeries} />
+      {/each}
+    </section>
+  {/if}
 </main>
 
 <footer>

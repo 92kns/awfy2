@@ -7,11 +7,20 @@ import type {
   ViewPreset,
 } from './types';
 
+export interface BenchmarkQueryOptions {
+  detail?: 'summary' | 'subtests';
+  project?: 'configured' | 'autoland' | 'mozilla-central';
+}
+
 export function resolveSeries(
   series: SeriesTemplate,
   view: ViewPreset,
+  projectOverride: BenchmarkQueryOptions['project'] = 'configured',
 ): ResolvedSeries[] {
-  const project = view.project ?? series.project;
+  const project =
+    projectOverride !== 'configured'
+      ? projectOverride
+      : (view.project ?? series.project);
 
   if (series.platform) {
     return [
@@ -33,6 +42,7 @@ export function buildBenchmarkQueries(
   view: ViewPreset,
   benchmarkId: string,
   categoryId: string,
+  options: BenchmarkQueryOptions = {},
 ): BenchmarkQuery[] {
   const category = view.categories[categoryId];
   if (!category) return [];
@@ -44,14 +54,15 @@ export function buildBenchmarkQueries(
     if (!benchmark) return [];
 
     const series = Object.values(benchmark.compare).flatMap((entry) =>
-      resolveSeries(entry, view),
+      resolveSeries(entry, view, options.project),
     );
 
     return [
       {
         benchmarkId: id,
         ...(benchmark.docUrl ? { docUrl: benchmark.docUrl } : {}),
-        includeSubtests: benchmarkId !== 'overview',
+        includeSubtests:
+          benchmarkId !== 'overview' && options.detail === 'subtests',
         label: benchmark.label,
         series,
         ...(benchmark.yLabel ? { yLabel: benchmark.yLabel } : {}),

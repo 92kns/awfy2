@@ -24,7 +24,16 @@ describe('AWFY preset', () => {
       'linux64-shippable',
       'linux1804-64-shippable-qr',
     ]);
-    expect(queries[0]!.includeSubtests).toBe(true);
+    expect(queries[0]!.includeSubtests).toBe(false);
+
+    const subtestQueries = buildBenchmarkQueries(
+      preset.benchmarks,
+      view,
+      'rasterflood_svg',
+      'benchmarks',
+      { detail: 'subtests' },
+    );
+    expect(subtestQueries[0]!.includeSubtests).toBe(true);
   });
 
   it('builds overview queries without subtest expansion', () => {
@@ -39,5 +48,19 @@ describe('AWFY preset', () => {
     expect(queries.every((query) => query.includeSubtests === false)).toBe(
       true,
     );
+  });
+
+  it('deliberately overrides configured projects', () => {
+    const view = preset.config.views.win11!;
+    const [query] = buildBenchmarkQueries(
+      preset.benchmarks,
+      view,
+      'rasterflood_svg',
+      'benchmarks',
+      { project: 'mozilla-central' },
+    );
+    expect(
+      query!.series.every((series) => series.project === 'mozilla-central'),
+    ).toBe(true);
   });
 });

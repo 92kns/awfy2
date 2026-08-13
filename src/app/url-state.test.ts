@@ -8,8 +8,14 @@ describe('URL state', () => {
     const selection = {
       benchmark: 'speedometer3-android',
       category: 'benchmarks',
+      chart: 'median' as const,
       days: 30,
+      detail: 'subtests' as const,
       platform: 'androidGalaxyA55',
+      baseline: 'Fenix',
+      project: 'mozilla-central' as const,
+      subtestSearch: 'score',
+      values: 'relative' as const,
       visibleSeries: ['Fenix'],
     };
     const url = selectionUrl(selection, current);
@@ -28,5 +34,29 @@ describe('URL state', () => {
     expect(selection.category).toBe(preset.config.default.category);
     expect(selection.benchmark).toBe('overview');
     expect(selection.days).toBe(preset.config.default.dayRange);
+    expect(selection.detail).toBe('summary');
+    expect(selection.project).toBe('configured');
+    expect(selection.chart).toBe('scatter');
+    expect(selection.values).toBe('absolute');
+    expect(selection.baseline).toBeNull();
+  });
+
+  it('uses validated defaults for new URL state and accepts legacy URLs', () => {
+    const selection = readSelection(
+      preset,
+      new URL(
+        'https://example.test/?platform=androidGalaxyA55&category=benchmarks&benchmark=speedometer3-android&days=30&detail=nope&project=bad&chart=nope&values=nope&baseline=Nope',
+      ),
+    );
+    expect(selection).toMatchObject({
+      benchmark: 'speedometer3-android',
+      detail: 'summary',
+      project: 'configured',
+      chart: 'scatter',
+      values: 'absolute',
+      baseline: null,
+      subtestSearch: '',
+      visibleSeries: null,
+    });
   });
 });

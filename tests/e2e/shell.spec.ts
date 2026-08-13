@@ -17,9 +17,7 @@ test('loads the dashboard shell and persists controls in the URL', async ({
   ).toBeVisible();
   await page.getByLabel('Time range').selectOption('30');
   await expect(page).toHaveURL(/days=30/);
-  await expect(
-    page.getByText(/configured series could not be loaded/),
-  ).toBeVisible();
+  await expect(page.getByText(/comparison[s]? unavailable/)).toBeVisible();
 });
 
 test('renders Treeherder data without leaking Svelte proxies into Chart.js', async ({
