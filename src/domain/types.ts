@@ -73,6 +73,12 @@ export interface BenchmarkQuery {
 
 export interface Datum {
   datumId: number;
+  /** Treeherder metadata is optional because older data responses omit it. */
+  jobId?: number | string | undefined;
+  pushId?: number | string | undefined;
+  pushUrl?: string | undefined;
+  revision?: string | undefined;
+  revisionUrl?: string | undefined;
   timestamp: number;
   value: number;
 }
@@ -97,6 +103,7 @@ export type SignatureResolution =
   | { status: 'ambiguous'; candidates: Signature[] };
 
 export interface PerformanceGraph {
+  alerts?: PerformanceAlert[] | undefined;
   data: Datum[];
   meta: Signature;
   perfherderUrl: string;
@@ -117,12 +124,38 @@ export interface SeriesQueryFailure {
 
 export type SeriesQueryResult = SeriesQuerySuccess | SeriesQueryFailure;
 
+export type ChartMode = 'scatter' | 'trend' | 'median';
+
+export type ChartValueMode = 'absolute' | 'relative';
+
+export type AlertKind = 'alert' | 'regression';
+
+/**
+ * A marker associated with a performance point.  The data-fetching layer can
+ * supply whichever identifier Treeherder exposes; rendering matches a marker
+ * by datum id first and timestamp second.
+ */
+export interface PerformanceAlert {
+  datumId?: number | undefined;
+  kind: AlertKind;
+  summary?: string | undefined;
+  timestamp?: number | undefined;
+}
+
 export interface ChartPoint {
+  alert?: PerformanceAlert | undefined;
+  datumId?: number | undefined;
+  jobId?: number | string | undefined;
+  pushId?: number | string | undefined;
+  pushUrl?: string | undefined;
+  revision?: string | undefined;
+  revisionUrl?: string | undefined;
   x: number;
   y: number;
 }
 
 export interface ChartSeries {
+  alerts?: PerformanceAlert[] | undefined;
   color: string;
   data: ChartPoint[];
   label: string;
@@ -133,6 +166,7 @@ export interface GraphViewModel {
   id: string;
   lowerIsBetter?: boolean | undefined;
   perfherderUrl: string;
+  project?: TreeherderProject | undefined;
   series: ChartSeries[];
   subtitle?: string | undefined;
   title: string;

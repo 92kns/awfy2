@@ -77,6 +77,9 @@ test('renders Treeherder data without leaking Svelte proxies into Chart.js', asy
     '/?platform=win11&category=benchmarks&benchmark=displaylist_mutate&days=30',
   );
   await expect(page.locator('canvas')).toBeVisible();
-  await expect(page.getByText('Firefox', { exact: true })).toBeVisible();
+  await expect(
+    page.getByLabel('Chart series').getByText('Firefox', { exact: true }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Reset zoom' }).click();
   expect(pageErrors).toEqual([]);
 });
