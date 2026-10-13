@@ -1,8 +1,8 @@
-# AWFY2 agent guide
+# AWFY Reimagined agent guide
 
 ## Purpose
 
-AWFY2 is a static, configuration-driven Firefox performance dashboard. It is
+AWFY Reimagined is a static, configuration-driven Firefox performance dashboard. It is
 built for GitHub Pages and embedded by perf-labs. There is deliberately no
 application server.
 

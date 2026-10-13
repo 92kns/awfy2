@@ -1,8 +1,8 @@
 /**
  * Deployment-prefix validation for the static GitHub Pages build.
  *
- * The dashboard is served from more than one prefix: `/awfy2/` on GitHub Pages
- * and `/gh/awfy2/` behind the perf-labs proxy. Vite is configured with
+ * The dashboard is served from more than one prefix: `/awfy-reimagined/` on GitHub Pages
+ * and `/gh/awfy-reimagined/` behind the perf-labs proxy. Vite is configured with
  * `base: './'` so every asset reference stays relative, but a stray
  * root-absolute `/assets/...` URL still builds and still loads on a local
  * preview at `/`. It only 404s once deployed under a prefix, which is exactly

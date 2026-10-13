@@ -4,7 +4,7 @@ import { readSelection, selectionUrl } from './url-state';
 
 describe('URL state', () => {
   it('round-trips a selection at the deployment root', () => {
-    const current = new URL('https://example.test/awfy2/');
+    const current = new URL('https://example.test/awfy-reimagined/');
     const selection = {
       benchmark: 'speedometer3-android',
       category: 'benchmarks',
@@ -19,7 +19,7 @@ describe('URL state', () => {
       visibleSeries: ['Fenix'],
     };
     const url = selectionUrl(selection, current);
-    expect(url.pathname).toBe('/awfy2/');
+    expect(url.pathname).toBe('/awfy-reimagined/');
     expect(readSelection(preset, url)).toEqual(selection);
   });
 

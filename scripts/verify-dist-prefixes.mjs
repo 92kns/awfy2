@@ -34,7 +34,7 @@ try {
     const problems = deployPrefixProblems(html);
     if (problems.length === 0) {
       console.log(
-        'dist/index.html uses only prefix-relative references; safe to publish at /awfy2/ or behind a proxy prefix.',
+        'dist/index.html uses only prefix-relative references; safe to publish at /awfy-reimagined/ or behind a proxy prefix.',
       );
     } else {
       for (const problem of problems) console.error(`- ${problem}`);

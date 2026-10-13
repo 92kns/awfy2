@@ -1,6 +1,6 @@
-# AWFY2 — Are We Fast Yet?
+# AWFY Reimagined — Are We Fast Yet?
 
-A greenfield, static Firefox performance dashboard backed by Treeherder. AWFY2
+A greenfield, static Firefox performance dashboard backed by Treeherder. AWFY Reimagined
 preserves the useful curated views from the legacy Firefox performance
 dashboards while making signature resolution, API validation, partial failures,
 and shareable state explicit.
@@ -49,8 +49,8 @@ npm run audit:live
 ```
 
 `verify:dist` runs after `build` and asserts that `dist/index.html` references
-its bundle relatively. The site is served both from `/awfy2/` on GitHub Pages and
-behind a `/gh/awfy2/` proxy prefix, and a root-absolute `/assets/...` URL still
+its bundle relatively. The site is served both from `/awfy-reimagined/` on GitHub Pages and
+behind a `/gh/awfy-reimagined/` proxy prefix, and a root-absolute `/assets/...` URL still
 works on a local preview at `/` while 404ing once deployed.
 
 `audit:live` is intentionally separate from deterministic unit tests. It resolves
@@ -122,8 +122,8 @@ Actions**.
 
 Vite uses `base: './'`, so the same artifact works at both:
 
-- `https://92kns.github.io/awfy2/`
-- `https://perf-labs.netlify.app/` through `/gh/awfy2/`
+- `https://92kns.github.io/awfy-reimagined/`
+- `https://perf-labs.netlify.app/` through `/gh/awfy-reimagined/`
 
 ## Legacy behavior intentionally corrected
 

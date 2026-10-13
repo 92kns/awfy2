@@ -4,8 +4,8 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-  // Relative assets work both at /awfy2/ on GitHub Pages and behind the
-  // /gh/awfy2/ perf-labs proxy.
+  // Relative assets work both at /awfy-reimagined/ on GitHub Pages and behind the
+  // /gh/awfy-reimagined/ perf-labs proxy.
   base: './',
   plugins: [svelte()],
   test: {

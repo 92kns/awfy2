@@ -13,7 +13,7 @@ permissions:
 jobs:
   verify:
     concurrency:
-      group: awfy2-verify-${{ github.ref }}
+      group: awfy-reimagined-verify-${{ github.ref }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -28,7 +28,7 @@ jobs:
       - run: npm run check
       - run: npm run test
       - run: npm run build
-      # The site is served from /awfy2/ on Pages and behind a /gh/awfy2/ proxy,
+      # The site is served from /awfy-reimagined/ on Pages and behind a /gh/awfy-reimagined/ proxy,
       # so a root-absolute asset URL must fail here rather than after deploying.
       - run: npm run verify:dist
       - run: npx playwright install --with-deps chromium
@@ -50,7 +50,7 @@ jobs:
     if: github.event_name != 'pull_request'
     # A deploy in progress must finish rather than be cancelled halfway.
     concurrency:
-      group: awfy2-pages
+      group: awfy-reimagined-pages
       cancel-in-progress: false
     environment:
       name: github-pages

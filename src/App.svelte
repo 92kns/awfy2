@@ -162,7 +162,9 @@
     <p class="eyebrow">Firefox performance</p>
     <h1>{preset.title}</h1>
   </div>
-  <a class="source-link" href="https://github.com/92kns/awfy2">Source</a>
+  <a class="source-link" href="https://github.com/92kns/awfy-reimagined"
+    >Source</a
+  >
 </header>
 
 <main>

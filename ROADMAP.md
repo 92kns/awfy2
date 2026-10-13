@@ -1,6 +1,6 @@
-# AWFY2 dashboard evolution plan
+# AWFY Reimagined dashboard evolution plan
 
-This plan keeps AWFY2 a static GitHub Pages application. Treeherder remains
+This plan keeps AWFY Reimagined a static GitHub Pages application. Treeherder remains
 the source of truth; the browser owns selection state and rendering.
 
 ## Release objective
@@ -81,6 +81,6 @@ Acceptance criteria:
 
 ## Deferred only when the upstream API cannot support it
 
-No AWFY2 server will be introduced solely for a feature. Anything requiring
+No AWFY Reimagined server will be introduced solely for a feature. Anything requiring
 credentials, cross-origin mutation, or durable user state remains a link into
 Treeherder/Perfherder until a static-safe upstream API exists.
